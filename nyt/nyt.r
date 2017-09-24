@@ -1,8 +1,3 @@
-##Need to go back through and add comments.
-nyt1 <- read.csv("/1_week_nyt/nyt1.csv", header=T)
-nyt1 <- read.csv("csv/1_week_nyt/nyt1.csv", header=T)
-rm(nyt1)
-
 ## NYT Web Traffic Analysis
 
 ## First, save this environment as an R project - rproj file -- and put it in the Github repo I set up for this project. When I do that, it should automatically set the working directory to the Github repo.  I can confirm that with the getwd() -- get working directory -- command. 
@@ -42,7 +37,7 @@ summary(nytweek)
 
 ##Now we're ready to start looking at how different age groups use the site.  To get a sense of how ages are distributed, let's create a table with a count of users by age.  
 
-table(nyt1$Age)
+table(nytweek$Age)
 
 ##There are a ton of places where age is equal to zero. Since it's almost certainly true that people who are 0 years old are not viewing the NYT site, we should remove those.  Later on, though, it will be useful to analyze the data with those included.  But when we're analyzing by age, they're meaningless.  So let's take them out, but be sure to keep our original data intact.  We'll call this new data set nytweekno0.  
 
@@ -50,7 +45,9 @@ nytweekno0 <- subset(nytweek, Age > 0)
 
 ## Now let's group each row/observation into an age group, using the cut function.  Our age groups are <18, 18-24, 25-34, 35-44, 45-54, 55-64, 65+.  We use the cut function and assign breaks. We're also going to group each row/observation into a click group -- whether they clicked through (1+ click) or didn't (0 clicks).  We assign each of these cut functions to a variable name (agegroup, clickgroup) and then use column bind (cbind) to append them to the end of our existing data set. 
 
-nytweeknno0 <- cbind(nytweek, agegroup = cut(nytweekno0$Age, breaks=c(0,18,24,34,44,54,64,Inf), labels=c("<18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+")), clickgroup = cut(nytweekno0$Clicks, breaks=c(-1,0,Inf), labels= c("No Clicks", "Some Clicks")))
+nytweekno0 <- cbind(nytweekno0, agegroup = cut(nytweekno0$Age, breaks=c(0,18,24,34,44,54,64,Inf), labels=c("<18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+")), clickgroup = cut(nytweekno0$Clicks, breaks=c(-1,0,Inf), labels= c("No Clicks", "Some Clicks")))
+
+##Let's also create a column for Clickthru rate
 
 ## For this analysis, we only need to look at a single day.  So let's create a subset of the data that only includes the first day. Let's call this nytdayno0
 
@@ -63,10 +60,9 @@ library(ggplot2)
 
 ggplot(data=nytdayno0, aes(x=Impressions)) +
 geom_histogram(binwidth = 1) +
-facet_grid(agegroup~.) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-
+  facet_grid(~.agegroup) +
+  theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
+  theme(axis.text.x = element_text(angle=0))
 
 ##Now CTR...
 
@@ -74,7 +70,7 @@ theme(axis.text.x = element_text(angle=0))
 
 ggplot(data=nyt, aes(x=Impressions/Clicks)) +
 geom_histogram(binwidth = 1) +
-facet_grid(agegroup~.) +
+facet_grid(~agegroup.) +
 theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
 theme(axis.text.x = element_text(angle=0))
 nytweek$CTR <- nytweek$Clicks/nytweek$Impressions
