@@ -11,11 +11,11 @@ ________________
 WARNING: These data are designed to simulate real data (and all the accompanying headaches).  Don’t make assumptions (e.g., that age > 0)[b][c] unless you’ve verified that the data actually comply with these assumptions.
 
 
-   1. Create a new variable, age_group, that categorizes users as “<18”, ”18-24”, ”25-34”, ”35-44”, ”45-54”, “55-64” and “65+”. [d]
-   2. For a single day
+DONE - 1. Create a new variable, age_group, that categorizes users as “<18”, ”18-24”, ”25-34”, ”35-44”, ”45-54”, “55-64” and “65+”. [d]
+ DONE - 2. For a single day
       1. Plot the distributions of number impressions and click-through-rate (CTR=# clicks/# impressions), for these 6 age categories. [You will turn in a .R and .html file where the latter will show this plot][e]
       2. Define a new variable to segment or categorize users based on their click behavior[f] 
-(The remaining questions require you to be creative and come with you your own variables/parameters/metrics are required in the question.)
+      (The remaining questions require you to be creative and come with you your own variables/parameters/metrics are required in the question.)
       1. Explore the data and make visual and quantitative comparisons across user segments/ demographics (<18 year old male vs < 18 year old females or logged-in vs not, for example). [g]
    1. Create metrics/measurements/statistics that summarize the data. Examples of potential metrics include CTR, quantiles, mean, median, variance, max, and these can be calculated across the various user segments. [h]Be selective. Think about what will be important to track over time; what will compress the data, but still capture user behavior. Now extend your analysis across days (one week is sufficient)[i]. Visualize metrics and distributions over time. Your plot should emphasize what actually changes over days.
    2. Describe and interpret any patterns you find. [Include in your writeup]

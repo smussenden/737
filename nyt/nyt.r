@@ -47,135 +47,107 @@ nytweekno0 <- subset(nytweek, Age > 0)
 
 nytweekno0 <- cbind(nytweekno0, agegroup = cut(nytweekno0$Age, breaks=c(0,18,24,34,44,54,64,Inf), labels=c("<18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+")), clickgroup = cut(nytweekno0$Clicks, breaks=c(-1,0,Inf), labels= c("No Clicks", "Some Clicks")))
 
-##Let's also create a column for Clickthru rate
+##Let's also create a column for Clickthru rate called CTR, which is clicks divided by impressions.  Because CTR doesn't exist, it's automatically added to the end of the existing table. 
+nytweekno0$CTR <- nytweekno0$Clicks/nytweekno0$Impressions
 
-## For this analysis, we only need to look at a single day.  So let's create a subset of the data that only includes the first day. Let's call this nytdayno0
 
-nytdayno0 <- subset(nytweek, Day = "One")
+## For this analysis, we only need to look at a single day.  So let's create a subset of the data that only includes the first day. Let's call this nytdayno0. Remember, need two equals signs. 
+
+nytdayno0 <- subset(nytweekno0, Day == "One")
 
 ##Time to visualize.  Let's load the ggplot library. 
 library(ggplot2)
 
-##Let's create small multiple histograms that shows the distribution of Impressions for each age group. 
+##Let's create small multiple histograms that shows the distribution of Impressions for each age group. It appears to create a normal distribution around users with 5 impressions.It also shows just more users for35-44, 45-54 and 25-34 age group.
 
 ggplot(data=nytdayno0, aes(x=Impressions)) +
 geom_histogram(binwidth = 1) +
-  facet_grid(~.agegroup) +
+  facet_grid(agegroup ~ .)
   theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
   theme(axis.text.x = element_text(angle=0))
 
-##Now CTR...
+##Let's also create a small multiple histogram that shows click through rate. This shows that the vast majority of users have a clickthrough rate of zero.  It also destroys the scale for the graph, making it impossible to see the distribution of the non-zero users.  
 
+ggplot(data=nytdayno0, aes(x=CTR)) +
+    geom_histogram(binwidth = .01) +
+    facet_grid(agegroup ~ .)
+  theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
+    theme(axis.text.x = element_text(angle=0))
 
+##To get a better look at the non-zero distribution of CTR, let's rebuild the graph without the 0 users.  Most of the users are disributed under .25 percent CTR.
+  
+ggplot(data=subset(nytdayno0, CTR > 0), aes(x=CTR)) +
+    geom_histogram(binwidth = .01) +
+    facet_grid(agegroup ~ .)
+  theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
+    theme(axis.text.x = element_text(angle=0))  
 
-ggplot(data=nyt, aes(x=Impressions/Clicks)) +
-geom_histogram(binwidth = 1) +
-facet_grid(~agegroup.) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-nytweek$CTR <- nytweek$Clicks/nytweek$Impressions
-View(nytweek)
+## Let's look at users based on click behavior.  We've segmented them into "No Clicks" and "Some Clicks". The vast majority of users do not click through to another page. 
+  
+  ggplot(data=nytdayno0, aes(x=clickgroup)) +
+   geom_bar()
+  
+## Let's drill in specificially on the behavior of logged-in users vs. non-logged in users.  0 is a not signed in user.  1 is signed in user. We need to go back to our original nytweek for this. 
+  
 nytday <- subset(nytweek, Day == "One")
-ggplot(data=nyt, aes(x=CTR)) +
-geom_histogram(binwidth = 1) +
-facet_grid(agegroup~.) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-ggplot(data=nytday, aes(x=CTR)) +
-geom_histogram(binwidth = 1) +
-facet_grid(agegroup~.) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-ggplot(data=nytday, aes(x=CTR)) +
-geom_histogram() +
-facet_grid(agegroup~.) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-ggplot(data=nytday, aes(x=CTR)) +
-geom_histogram() +
-facet_grid(~agegroup.) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-ggplot(data=nytday, aes(x=CTR)) +
-geom_histogram() +
-facet_grid(.~agegroup) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-ggplot(data=nytday, aes(x=CTR)) +
-geom_histogram() +
-facet_row(.~agegroup) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-ggplot(data=nytday, aes(x=CTR)) +
-geom_histogram() +
-facet_wrap(.~agegroup) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-ggplot(data=nytday, aes(x=CTR)) +
-geom_histogram() +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-(.~agegroup) +
-ggplot(data=nytday, aes(x=CTR)) +
-geom_histogram() +
-(.~agegroup) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-ggplot(data=nytday, aes(x=CTR)) +
-geom_histogram() +
-(.~agegroup) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-_wrap
-ggplot(data=nytday, aes(x=CTR)) +
-geom_histogram() +
-facet_grid(.~agegroup) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-ggplot(data=subset(nytday, CTR > 0), aes(x=CTR)) +
-geom_histogram() +
-facet_grid(.~agegroup) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-ggplot(data=subset(nytday, CTR > 0), aes(x=CTR)) +
-geom_histogram() +
-facet_grid(agegroup~.) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-ggplot(data=nytday, aes(x=CTR)) +
-geom_histogram() +
-facet_grid(agegroup~.) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-ggplot(data=subset(nytday, CTR > 0), aes(x=CTR)) +
-geom_histogram() +
-facet_grid(agegroup~.) +
-theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-theme(axis.text.x = element_text(angle=0))
-View(nytday)
-summary(nytday$Signed_In)
-table(nytday$Signed_In)
-table(nytweek$Signed_In)
-##Read in the NYT Data (uncomment if running again)
-nyt1 <- read.csv("/Desktop/737/HW1/1_week_nyt/nyt1.csv", header=T)
 
-## Create a single column that assigns an age-range category to each observation, under 18, 18-24, 25-34, 35-44, 45-54, 55-64,65+. Start at -1 so we include zero.
-nyt <- cbind(nyt, agegroup = cut(nyt$Age, breaks=c(-1,18,24,34,44,54,64,Inf), labels=c("<18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+")), clickgroup = cut(nyt$Clicks, breaks=c(-1,0,Inf), labels= c("No Clicks", "Some Clicks")))
+## Let's create a natural language version of 0 and 1 for the logged in value "Logged In" "Not Logged In" and add it to the end of the data set.     
+  
+nytday <- cbind(nytday, usertype = cut(nytday$Signed_In, breaks=c(-1,0,Inf), labels= c("Not Logged In", "Logged In")))
 
-##load ggplot
-library(ggplot2)
+##Let's create small multiple histograms that shows the distribution of Impressions for each usertype. The distribution of impressions is pretty similar for logged in vs not logged in users.  
 
-##Create a small multiples histogram
-ggplot(data=nyt, aes(x=Impressions)) +
+ggplot(data=nytday, aes(x=Impressions)) +
   geom_histogram(binwidth = 1) +
-  facet_grid(agegroup~.) + 
-  theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
+  facet_grid(usertype ~ .)
+theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
+  theme(axis.text.x = element_text(angle=0))
+
+##Let's also create a column for Clickthru rate called CTR, which is clicks divided by impressions.  Because CTR doesn't exist, it's automatically added to the end of the existing table. 
+nytday$CTR <- nytday$Clicks/nytday$Impressions
+
+##Let's create small multiple histograms that shows the distribution of Click Through Rate for each usertype. It shows that, again, the vast majority of of users have a CTR of zero. 
+
+ggplot(data=nytday, aes(x=CTR)) +
+  geom_histogram(binwidth = .01) +
+  facet_grid(usertype ~ .)
+theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
+  theme(axis.text.x = element_text(angle=0))
+
+
+##To get a better look at the non-zero distribution of CTR, let's rebuild the graph without the 0 users.  Most of the users are disributed under .25 percent CTR. The distributions are fairly similar for both. 
+
+ggplot(data=subset(nytday, CTR > 0), aes(x=CTR)) +
+  geom_histogram(binwidth = .01) +
+  facet_grid(usertype ~ .)
+theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
   theme(axis.text.x = element_text(angle=0)) 
 
-##Create a small multiples histogram
-THIS IS NOT RIGHT...CTR = click through rate = impressons/
-ggplot(data=nyt, aes(x=Clicks)) +
+##Now let's drill in on the behavior of men vs. women.  Let's create a natural language version of 0 and 1 for the logged in value "Female" "Male" and add it to the end of the data set in column sex.     
+
+nytday <- cbind(nytday, sex = cut(nytday$Gender, breaks=c(-1,0,Inf), labels= c("Female", "Male")))
+
+##Let's create small multiple histograms that shows the distribution of Impressions for each gender. Besides showing subsantially more women in the data set, the distribution of Impressions appears to be similar. 
+
+ggplot(data=nytday, aes(x=Impressions)) +
   geom_histogram(binwidth = 1) +
-  facet_grid(agegroup~.) + 
-  theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
-  theme(axis.text.x = element_text(angle=0)) 
+  facet_grid(sex ~ .)
+theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
+  theme(axis.text.x = element_text(angle=0))
+
+##Let's create small multiple histograms that shows the distribution of Click Through Rate for each gender. It shows that, again, the vast majority of of users have a CTR of zero in both genders. 
+
+ggplot(data=nytday, aes(x=CTR)) +
+  geom_histogram(binwidth = .01) +
+  facet_grid(sex ~ .)
+theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
+  theme(axis.text.x = element_text(angle=0))
+
+##To get a better look at the non-zero distribution of CTR, let's rebuild the graph without the 0 users.  Most of the users are disributed under .25 percent CTR. Similar distribution for both genders. 
+
+ggplot(data=subset(nytday, CTR > 0), aes(x=CTR)) +
+  geom_histogram(binwidth = .01) +
+  facet_grid(sex ~ .)
+theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
+  theme(axis.text.x = element_text(angle=0))  
+
