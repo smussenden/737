@@ -23,6 +23,14 @@ nyt5$Day <- "Five"
 nyt6$Day <- "Six"
 nyt7$Day <- "Seven"
 
+nyt1$DayNumber <- 1
+nyt2$DayNumber <- 2
+nyt3$DayNumber <- 3
+nyt4$DayNumber <- 4
+nyt5$DayNumber <- 5
+nyt6$DayNumber <- 6
+nyt7$DayNumber <- 7
+
 ## Now let's assemble our seven CSVs in to a single CSV, and store this new sheet.  Note: as long as header rows are the same across sheet, this won't cause problems. Also, the header rows are not repeated with this method, unlike what happens with Excel if you tried to copy and paste sheets together. 
 nytweek <- rbind(nyt1, nyt2, nyt3, nyt4, nyt5, nyt6, nyt7)
 
@@ -151,3 +159,31 @@ ggplot(data=subset(nytday, CTR > 0), aes(x=CTR)) +
 theme(plot.title = element_text(family="Trebuchet MS", face="bold", size=20, hjust=0, color="#555555")) +
   theme(axis.text.x = element_text(angle=0))  
 
+##Now let's track movements across time.  For each day, let's calcluate some summary statistics. But first, let's load the tidyverse, so we can work with that. 
+
+library("tidyverse")
+
+##And let's add a new column to nytweek, using the grammar of tidyverse, using mutate() to calculate the clickthrough rate.
+
+nytweek <- mutate(nytweek, CTR = Clicks/Impressions)
+
+##Now let's break down what, if any, difference there is by day across a single week.  We'll create a new data frame (or a tibble in parlance of tidyverse) called nytsummary and group by day of the week, and calculate summary stats (means, across each category), plus a count of total observations.  Here's what we see.  There's almost know meaningful variation in average age (range 29.43 to 29.5).  The gender profile -- if 0 is woman and 1 is man, an average under .5 indicates a larger percentage of women -- stays relatively constant across days, raging from .374 on day two, to .355 on day six. The mean impressions stays extremly constant at 5 on all days.  And the mean number of clicks stays constant at .092.  The percentage of signed in users -- if 0 is not signed in and 1 is signed in, then a mean over .5 means more signed in users than not signed in -- stays constant at .7.  In fact, the only real variation across days present is the total number of users.  That figure dips from a low of 370K on day 5 to a high of 765K on day 6.  
+
+nytsummary <- nytweek %>% 
+  group_by(DayNumber, Day) %>%
+  arrange(Day) %>%
+  summarise(MeanAge = mean(Age),
+            MeanGender = mean(Gender),
+            MeanImpressions = mean(Impressions),
+            MeanClicks = mean(Clicks),
+            MeanSignedIn = mean(Signed_In),
+            MeanCTR = mean(CTR),
+            total = n()) 
+
+##This plot shows the total number of users by day, signifying the huge spike on day six, preceeded by the weakest day of the observed period, day five. There was so little variation in the other measures that it wasn't worth showing. At least in the period observed, there was not significant variation amongst users. Note: the "identity" stat was critical to making this work as a bar plot.  The last line is to force the x axis to show all the day labels. 
+
+library("RColorBrewer")  
+ggplot(data=nytsummary, aes(DayNumber,total)) +
+  geom_bar(stat = "identity") +
+  scale_x_continuous(breaks = round(seq(min(nytsummary$DayNumber), max(nytsummary$DayNumber), by = 1),1)) +
+  theme_economist() + scale_colour_economist() 
