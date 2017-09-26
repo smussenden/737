@@ -36,49 +36,121 @@ View(klaverns)
 klaverns <- filter(klaverns, state != "Panama")
 View(states)
 
-## How many groups are there in each state?
-
+##How many groups are there in each state?
 statecount <- klaverns %>% 
-  group_by(state) %>%
-  summarise( count = n())
-statecount <- arrange(statecount, desc(count))
+  group_by(state)%>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
 View(statecount)
 
-## How many groups were identified in each year? First, take out rows without a year.  Then give me a count. 
-klaverns <- filter(klaverns, year != 0)
+##Let's create some summary statistics for the data frame/table that counted groups in each state
+statesummary <- statecount %>%
+  summarise(Name = "StateSummary",
+            Mean = mean(count),
+            Median = median(count),
+            Min = min(count),
+            Max = max(count),
+            Variance = var(count),
+            StandardDeviation = sd(count),
+            Total = sum(count),
+            Uniques = n()
+            )
+View(statesummary)
 
-yearcount <- klaverns %>%
+## How many groups were identified in each year? First, take out rows without a year.  Then give me a count, arranged from highest to lowest count. 
+
+klavernsnoyear <- filter(klaverns, year != 0)
+
+yearcount <- klavernsnoyear %>%
   group_by(year) %>%
-  summarise( count = n())
-yearcount <- arrange(yearcount, desc(count))
+  summarise(count = n()) %>%
+  arrange(desc(count))
+  
 View(yearcount)
 
-## Let's do the same thing, but arrange by year
+## Let's do the same thing, but arrange by year this time.
 
-yearcount2 <- klaverns %>%
+yearcount2 <- klavernsnoyear %>%
   group_by(year) %>%
-  summarise( count = n())
-yearcount2 <- arrange(yearcount2, year)
+  summarise(count = n()) %>%
+  arrange(year)
+
 View(yearcount2)
 
-library(choroplethr)
+##Let's create some summary statistics for the count of groups in each year.
+yearsummary <- yearcount %>%
+  summarise(Name = "YearSummary",
+            Mean = mean(count),
+            Median = median(count),
+            Min = min(count),
+            Max = max(count),
+            Variance = var(count),
+            StandardDeviation = sd(count),
+            Total = sum(count),
+            Uniques = n()
+  )
+View(yearsummary)
 
-gtd <- read.csv("gtd.csv")
+## Now let's bin the years into decades by using dplyr's mutate (not cbind) to add a column. And then let's group them by those decades.   
 
-US <- gtd[gtd$country_txt == "United States",]
+klavernsnoyear <- mutate(klavernsnoyear, decade = cut(klavernsnoyear$year, breaks=c(1914,1919,1929,1939,1949), labels=c("10s","20s","30s","40s")))
 
-stateattacks<- ddply(US, .(provstate), "nrow")
+decadecount <- klavernsnoyear %>%
+  group_by(decade) %>%
+  summarise(count= n()) %>%
+  arrange(decade)
 
-# choroplethr needs these column names
-colnames(stateattacks) <- c("region", "value")
+View(decadecount)
 
-# choroplethr might do this internally (have not checked)
-# but it's not a bad thing to do anyway
-stateattacks$region <- tolower(stateattacks$region)
+##Let's create some summary statistics for the count of groups in each decade.
+decadesummary <- decadecount %>%
+  summarise(Name = "DecadeSummary",
+            Mean = mean(count),
+            Median = median(count),
+            Min = min(count),
+            Max = max(count),
+            Variance = var(count),
+            StandardDeviation = sd(count),
+            Total = sum(count),
+            Uniques = n()
+  )
+View(decadesummary)
 
-# it won't work with the (…) bit and that might have been your 
-# problem with "old school' chorpleths not working
-stateattacks$region <- gsub(" (u.s. state)", "", stateattacks$region, fixed=TRUE)
+## Now let's break them down by state and decade
+statedecadecount <- klavernsnoyear %>%
+  group_by(state,decade) %>%
+  summarise(count=n()) %>%
+  arrange(state)
+View(statedecadecount)
 
-# make the US choropleth
-choroplethr(stateattacks, lod="state")
+## And let's just filter maryland out of statedecadecount
+maryland <- filter(statedecadecount,state == "Maryland")
+View(maryland)
+
+## Now let's look at the most common nicknames by grouping by nickname.  Note that this might not catch everything, because of issues like Charles Lindberg and Charles A. Lindberg. Also, let's look only at most common ones -- 3 or more entries. Note that we're going back to original klaverns data set, because we want to look at all of them, even ones without a year.
+nicknamecount <- klaverns %>%
+  group_by(nickname) %>%
+  summarise(count=n()) %>%
+  arrange(desc(count)) %>%
+  filter(count > 2) 
+View(nicknamecount)
+
+## Now let's look at just Maryland name breakdown.  
+nicknamecountmd <- klaverns %>%
+  filter(state == "Maryland") %>%
+  group_by(nickname) %>%
+  summarise(count=n()) %>%
+  arrange(desc(count))
+View(nicknamecountmd)  
+
+library(ggthemes)
+library(scales)
+
+ggplot(data=nicknamecountmd, aes(x = reorder(nickname, count), y=count, fill=count, label=count)) +
+  geom_bar(stat="identity") +
+  geom_text(size = 3, position = position_stack(vjust = .5), colour="white") +
+  coord_flip() + 
+  ggtitle("Most Maryland Klaverns not Named") +
+  scale_color_fivethirtyeight(count) +
+  theme_fivethirtyeight() + 
+  theme(legend.position="none")
