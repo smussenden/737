@@ -1,0 +1,319 @@
+---
+title: "Analyzing the rise of the second Ku Klux Klan"
+author: "Sean Mussenden"
+date: "September 29, 2017"
+output: html_document
+---
+
+# Introduction
+In the early 20th century, the Ku Klux Klan experienced a wave of growth that created about 2,000 new chapters in states across the country, according to John T. Kneebone and Shariq D. Torres, of Virginia Commonwealth University [("Publicity and Prejudice: The New York World’s Exposé of 1921 and the History of the Second Ku Klux Klan)"](http://scholarscompass.vcu.edu/cgi/viewcontent.cgi?article=1014&context=hist_pubs). The researchers kindly made available the data used in their analysis, both in [an interactive map](http://labs.library.vcu.edu/klan/), and as a series of four tables [as csvs](http://scholarscompass.vcu.edu/hist_data/1/), with common fieldsets to link them. The data describes the establishment of a new "klavern", a local klan chapter.  It includes variables/fields for location (city, state, latitude and longitude), the name of the chapter, and the year it was established.  While the researchers cannot say with certainty that they've captured every klan chapter in the U.S. to open during the period, their historical research -- primarily based on newspaper and other media accounts -- appears to be quite exhaustive. 
+
+This dataset allows us to ask several interesting questions, including:
+
+* In what period did the largest growth take place?
+* In what states was it concentrated?
+* What common threads can we find in how the klaverns were named?
+
+Like the era studied by Kneebone and Torees, we live in an age with a white supremacist movement building strength at a troubling pace. Analyzing this data allows us to identify patterns that we may use to shed light on the current era.  
+
+## Loading data, libraries
+
+Let's load the tidyverse, so we can work with dplyr, ggplot2, readr, and also the ggplot themes package ggtheme, and scales
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library('tidyverse')
+library(ggthemes)
+library(scales)
+```
+
+Let's load the data. Note that I'm using tidyverse's reader instead of vanilla R.  
+
+``` {r loaddata, include= TRUE}
+klaverns <- read_csv("csv/klavern.csv", col_names = TRUE)
+states <- read_csv("csv/states.csv", col_names = TRUE)
+
+```
+
+## Getting a sense of the data
+
+Let's take a look at the klaverns table a few different ways.  Glimpse gives me a breakdown of the fields (variables), with data type (int, chr, dbl) and some sample values.  as_tibble is sort of like glimpse, but it looks more like a data table. summary is NOT dplyr, but it does give us a nice sense of means, medians, min and max, as well as quartile, for numerical data. 
+
+```{r viewklaverns, include=TRUE}
+
+glimpse(klaverns)
+as_tibble(klaverns)
+summary(klaverns)
+```
+
+Now let's take a look at the states table
+```{r viewstates, include=TRUE}
+glimpse(states)
+as_tibble(states)
+summary(states)
+```
+
+## Tidying and cleaning the data
+
+Let's join the two tables, so that we have the name of the state, not just the state id, in the klaverns table.  But that will fail, because in the klaverns table, the column is called "state_id" but in states, the same information is just called "id".  So first we have to rename the column id in the states table as state_id.  The rename function is dplyr. 
+```{r rename, include=TRUE}
+states <- rename(states, state_id = id)
+```
+
+Now let's do the left join with some dplyr
+```{r leftjoin, include=TRUE}
+klaverns <- left_join(klaverns, states, by ="state_id")
+```
+
+And let's move the state name column -- which is just called state -- so it's next to state.  Note that this select is part of dplyr. It lets me select certain rows, ranges of rows, move rows around. 
+```{r select, include=TRUE}
+klaverns <- select(klaverns,id:city, state, klan_number:year)
+```
+
+And let's take out panama, because we want to stick to the U.S. 
+```{r nopanama, include=TRUE}
+klaverns <- filter(klaverns, state != "Panama")
+```
+
+## Analyzing the data
+
+Now let's answer some questions using dplyr.  Note we've named the data set at the top in the section below, followed by the %>% operator.  That means that we are applying all of the functions to the klaverns data set.  That lets us get away with not having to write the name of the dataset again and again in each function.  So instead of group_by(klaverns, state), we get group_by(klaverns).
+
+##### Q: How many groups are there in each state? 
+```{r statecount, include=TRUE}
+statecount <- klaverns %>% 
+  group_by(state)%>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+as.tibble(statecount)
+```
+##### A: Pennsylvania had the most, with 193, followed by Texas with 163. It's unclear if this is a fully accurate picture of the klaverns in the U.S., or just representative of the data we have.  
+
+Let's visualize it: 
+
+```{r statecountviz, include=TRUE, fig.width = 6, fig.height = 10}
+ggplot(data=statecount, aes(x = reorder(state,count), y=count, fill=count, label=count)) +
+  geom_bar(stat="identity") +
+  coord_flip() + 
+  geom_text(size = 3, position = position_stack(vjust = .5), colour="white") +
+  ggtitle("Klavern growth concentrated in Penn, Texas") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("State") +
+  ylab("Count")
+```
+
+##### Q: What is the mean, median and other summary stats for each state? 
+
+##### A: The mean number of groups in each state is 40, with a median of 25. 
+
+```{r statesummary, include=TRUE}
+
+statesummary <- statecount %>%
+  summarise(Name = "StateSummary",
+            Mean = mean(count),
+            Median = median(count),
+            Min = min(count),
+            Max = max(count),
+            Variance = var(count),
+            StandardDeviation = sd(count),
+            Total = sum(count),
+            Uniques = n()
+            )
+data.frame(statesummary)
+
+```
+##### Q: How many groups were identified in each year? 
+
+##### A: The biggest was 1923, as we see from this visualization. 
+
+```{r yearcount, include=TRUE}
+
+## First, take out rows without a year.  Then let's do a count, arranged from highest to lowest count. The most: 1923. 
+klavernsnoyear <- filter(klaverns, year != 0)
+
+yearcount <- klavernsnoyear %>%
+  group_by(year) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+ggplot(data=yearcount, aes(x = reorder(year,count), y=count, fill=count, label=count)) +
+  geom_bar(stat="identity") +
+  geom_text(size = 3, position = position_stack(vjust = .5), colour="white") +
+  ggtitle("Klavern growth concentrated in early 1920s") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("Year") +
+  ylab("Count")
+
+```  
+
+Let's order by time, to get a sense of the distribution. There was a huge spike in the early 1920s, followed by a decline, followed by another good sized spike in the early 1930s. 
+
+```{r yearcount2, include=TRUE}
+
+yearcount2 <- klavernsnoyear %>%
+  group_by(year) %>%
+  summarise(count = n()) %>%
+  arrange(year)
+
+ggplot(data=yearcount2, aes(x = year, y=count, fill=count, label=count)) +
+  geom_bar(stat="identity") +
+  geom_text(size = 3, position = position_stack(vjust = .5), colour="white") +
+  ggtitle("Klavern growth concentrated in early 1920s") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("Year") +
+  ylab("Count")
+
+```  
+
+Let's create some summary statistics for the count of groups in each year. The mean number for each year was 83, but the median was only 28. 
+
+```{r yearsummary, include=TRUE}
+  yearsummary <- yearcount %>%
+  summarise(Name = "YearSummary",
+            Mean = mean(count),
+            Median = median(count),
+            Min = min(count),
+            Max = max(count),
+            Variance = var(count),
+            StandardDeviation = sd(count),
+            Total = sum(count),
+            Uniques = n()
+  )
+data.frame(yearsummary)
+```
+
+Now let's bin the years into decades by using dplyr's mutate (not cbind) to add a column. And then let's group them by those decades, and count the number for each decade and visualize. We see extreme concentration in the 1920s.   
+
+```{r klavernsnoyear, include=TRUE}
+klavernsnoyear <- mutate(klavernsnoyear, decade = cut(klavernsnoyear$year, breaks=c(1914,1919,1929,1939,1949), labels=c("10s","20s","30s","40s")))
+
+decadecount <- klavernsnoyear %>%
+  group_by(decade) %>%
+  summarise(count= n()) %>%
+  arrange(decade)
+
+ggplot(data=decadecount, aes(x = reorder(decade, count), y=count, fill=count, label=count)) +
+  geom_bar(stat="identity") +
+  geom_text(size = 3, position = position_stack(vjust = .5), colour="white") +
+  ggtitle("Growth of Klaverns in the U.S.") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  xlab("Decade") +
+  ylab("Count")
+```
+
+
+##### Q: Are there differences in how the number of new groups differs by time across states?
+##### A: Yes.  In most states, we see the same concentration of growth in the 1920s evident in the entire data set, but that's not true of every state. Alaska had more than twice as many klaverns in the 30s than the 20s. Maryland was more typical of the data set means.
+
+```{r statedecadecount, include=TRUE}
+
+statedecadecount <- klavernsnoyear %>%
+  group_by(state,decade) %>%
+  summarise(count=n()) %>%
+  arrange(state)
+
+data.frame(statedecadecount)
+```
+
+And let's just filter Maryland to take a closer look at local data. More than three times as many klaverns emerged in the 1920s as the 1930s in the state. 
+
+```{r maryland, include=TRUE}
+
+maryland <- filter(statedecadecount,state == "Maryland")
+
+ggplot(data=maryland, aes(x = reorder(decade, count), y=count, fill=count, label=count)) +
+  geom_bar(stat="identity") +
+  geom_text(size = 3, position = position_stack(vjust = .5), colour="white") +
+  ggtitle("Growth of Klaverns in Maryland") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  xlab("Decade") +
+  ylab("Count")
+````
+
+##### Q: Are there any patterns in how these klaverns are nicknamed?
+##### A: Most are not named in the data set. But of those that are named, there are some interesting patterns. Civil War generals are popular and, in Maryland at least, geographic feature names. 
+
+Let's visualize the data
+
+```{r nicknamecount, include=TRUE}
+nicknamecount <- klaverns %>%
+  group_by(nickname) %>%
+  summarise(count=n()) %>%
+  arrange(desc(count)) %>%
+  filter(count > 2) 
+
+ggplot(data=nicknamecount, aes(x = reorder(nickname, count), y=count, fill=count, label=count)) +
+  geom_bar(stat="identity") +
+  geom_text(size = 3, position = position_stack(vjust = .5), colour="white") +
+  coord_flip() + 
+  ggtitle("Most popular Klavern names") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  xlab("Klaverns") +
+  ylab("count")
+
+```
+
+This clearly shows the lack of names for groups. But it obscures any real details of the most common groups with names.  Let's remove the no-names and visualize again. We see some interesting trends among the most common names.  Robert E. Lee makes sense, as does Nathan Bedford Forrest, since both are Confederate generals. The inclusion of Abraham Lincoln was genuinely surprising -- perhaps irony?
+
+```{r nicknamecountno0, include=TRUE}
+
+nicknamecountno0 <- klaverns %>%
+  group_by(nickname) %>%
+  summarise(count=n()) %>%
+  arrange(desc(count)) %>%
+  filter(count > 2 & nickname != "Not Named") 
+
+ggplot(data=nicknamecountno0, aes(x = reorder(nickname, count), y=count, fill=count, label=count)) +
+  geom_bar(stat="identity") +
+  geom_text(size = 3, position = position_stack(vjust = .5), colour="white") +
+  coord_flip() + 
+  ggtitle("Most popular Klavern names") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  xlab("Klaverns") +
+  ylab("count")
+
+```
+ 
+Now let's look at just Maryland. Again, more than half of Maryland klaverns are not named. A common naming convention appears to be geographical -- rivers (Severn, Choptank) and counties (Harford, Queen Anne's).
+
+```{r nicknamecountmd, include=TRUE}
+nicknamecountmd <- klaverns %>%
+  filter(state == "Maryland") %>%
+  group_by(nickname) %>%
+  summarise(count=n()) %>%
+  arrange(desc(count))
+
+##And visualize it. 
+ggplot(data=nicknamecountmd, aes(x = reorder(nickname, count), y=count, fill=count, label=count)) +
+  geom_bar(stat="identity") +
+  geom_text(size = 3, position = position_stack(vjust = .5), colour="white") +
+  coord_flip() + 
+  ggtitle("Most Maryland Klaverns not Named") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  xlab("Maryland klaverns") +
+  ylab("count")
+
+```
+
+
+
+
+
+
+
+
+
+
+
