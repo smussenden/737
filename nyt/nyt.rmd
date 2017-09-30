@@ -1,0 +1,368 @@
+---
+title: "NYT Web Traffic Analysis"
+author: "Sean Mussenden"
+date: "September 29, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Introduction
+In this analysis of simulated New York Times web traffic data from May 2012, we are seeking to discover patterns in how different user groups (age, gender, logged-in vs. not logged-in) behaved when visiting the site, as measured by ad impressions (page views) and click-through-rate.  This page will walk a user through the analysis step-by-step, and include visualizations.  
+
+## Reading in the data
+
+Let's read in the week's worth of New York Times web traffic, ad and click data, one csv per day.  Store them as variables, nyt1 through nyt7.  
+
+```{r dataread, include=TRUE}
+nyt1 <- read.csv("csv/1_week_nyt/nyt1.csv", header=T)
+nyt2 <- read.csv("csv/1_week_nyt/nyt2.csv", header=T)
+nyt3 <- read.csv("csv/1_week_nyt/nyt3.csv", header=T)
+nyt4 <- read.csv("csv/1_week_nyt/nyt4.csv", header=T)
+nyt5 <- read.csv("csv/1_week_nyt/nyt5.csv", header=T)
+nyt6 <- read.csv("csv/1_week_nyt/nyt6.csv", header=T)
+nyt7 <- read.csv("csv/1_week_nyt/nyt1.csv", header=T)
+```
+
+Later on, it will be helpful to know which day of the week each of these observations came from.  So let's add a new column to each of these called "Day" and set it equal to the day number in text, and another column called DayNumber, and set it equal to the day digit. The column Day and DayNumber don't currently exist, so adding it will append it after the last column. 
+
+```{r dataday, include=TRUE}
+nyt1$Day <- "One"
+nyt2$Day <- "Two"
+nyt3$Day <- "Three"
+nyt4$Day <- "Four"
+nyt5$Day <- "Five"
+nyt6$Day <- "Six"
+nyt7$Day <- "Seven"
+
+nyt1$DayNumber <- 1
+nyt2$DayNumber <- 2
+nyt3$DayNumber <- 3
+nyt4$DayNumber <- 4
+nyt5$DayNumber <- 5
+nyt6$DayNumber <- 6
+nyt7$DayNumber <- 7
+```
+
+Now let's assemble our seven CSVs into a single CSV, and store this new sheet.  Note: as long as header rows are the same across sheets, this won't cause problems. After we do this, to keep our workspace nice and tidy, we can remove the data sets we don't need. nyt1 - 7 are gone, leaving just nytweek. 
+
+```{r databind, include=TRUE}
+nytweek <- rbind(nyt1, nyt2, nyt3, nyt4, nyt5, nyt6, nyt7)
+rm(nyt1, nyt2, nyt3, nyt4, nyt5, nyt6, nyt7)
+```
+
+## Getting a sense of the data
+
+Let's take a look at our data set, and run some summary statistics. Some interesting things jump out:
+
+* The minimum age is 0, which is a cause for concern, since it's unlikely that newborns are visiting the NYT site. 
+* Because the mean gender is less than .5, we can tell there are more women than men in this data (0 = woman, 1 = man).
+* The mean number of ad impressions is 5, but the mean number of clicks (presumably on those ads) is minuscule, less than .1 percent. 
+* The mean logged-in value is greater than .5 percent, meaning our data set has more logged-in users than not. 
+
+```{r summary, include=TRUE}
+summary(nytweek)
+
+```
+
+To get a sense of how ages are distributed, let's create a table with a count of users by age.  
+
+```{r age, include=TRUE}
+table(nytweek$Age)
+
+```
+
+There are a ton of places where age is equal to zero. Since it's almost certainly true that people who are 0 years old are not viewing the NYT site, we should remove those.  Later on, though, it will be useful to analyze the data with those included.  But when we're analyzing by age, they're meaningless.  So let's take them out, but be sure to keep our original data intact.  We'll call this new data set nytweekno0.  
+
+```{r no0, include=TRUE}
+
+nytweekno0 <- subset(nytweek, Age > 0)
+
+```
+
+## Tidying, organizing the data
+
+Now let's group each row/observation into an age group, using the cut function.  Our age groups are <18, 18-24, 25-34, 35-44, 45-54, 55-64, 65+.  We use the cut function and assign breaks. We're also going to group each row/observation into a click group -- whether they clicked through (1+ click) or didn't (0 clicks).  We assign each of these cut functions to a variable name (agegroup, clickgroup) and then use column bind (cbind) to append them to the end of our existing data set. 
+
+```{r groups, include=TRUE}
+nytweekno0 <- cbind(nytweekno0, agegroup = cut(nytweekno0$Age, breaks=c(0,18,24,34,44,54,64,Inf), labels=c("<18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+")), clickgroup = cut(nytweekno0$Clicks, breaks=c(-1,0,Inf), labels= c("No Clicks", "Some Clicks")))
+```
+
+Let's also create a column for Clickthru rate called CTR, which is clicks divided by impressions.  Because CTR doesn't exist yet in our dataset, it's automatically added to the end of the existing table with this command. 
+
+```{r ctr, include=TRUE}
+nytweekno0$CTR <- nytweekno0$Clicks/nytweekno0$Impressions
+```
+
+For the first part of the analysis, we only need to look at a single day.  So let's create a subset of the data that only includes the first day. Let's call this nytdayno0. 
+
+```{r oneday, include=TRUE}
+nytdayno0 <- subset(nytweekno0, Day == "One")
+```
+
+## Visualizing, analysis
+Load tidyverse and other viz libraries.
+
+```{r ggplot, include=FALSE}
+library(tidyverse)
+library(ggthemes)
+library(scales)
+```
+
+
+Let's run some summary statistics by age group to see what we discover.  Several interesting points jump out:
+
+* The core NYT userbase appears to be middle-aged.  The largest age group is 35-44 year olds, more than twice as large as 65+, and three times as large as under 18s. 
+* While the mean number of impressions is fairly consistent at around 5 for each age group, there's a good bit of variation in the mean clicks for each group, which affects the CTR.
+* The mean click through rate for both young people (<18, with a mean age of 16) and old people (65+, with a mean age of 72) is substantially higher than people age 18 to 54.  Each of those groups hovers around a mean click rate of .05, while it's .13 for <18 and .15 for over 65+.  
+
+```{r nytsummary, include=TRUE}
+nytsummary <- nytdayno0 %>% 
+  group_by(agegroup) %>%
+  arrange(agegroup) %>%
+  summarise(MeanAge = mean(Age),
+            MeanGender = mean(Gender),
+            MeanImpressions = mean(Impressions),
+            MeanClicks = mean(Clicks),
+            MeanSignedIn = mean(Signed_In),
+            MeanCTR = mean(CTR),
+            total = n()) %>%
+  print(n = 10, width = Inf)
+```
+
+```{r nytsummarygrafs, include=TRUE}
+ggplot(data=nytsummary, aes(x = agegroup, y=MeanClicks, fill=MeanClicks, label=MeanClicks)) +
+  geom_bar(stat="identity") +
+  ##geom_text(size = 3, position = position_stack(vjust = .5), colour="white") +
+  ggtitle("Old, young have higher mean click rate") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("agegroup") +
+  ylab("Mean Clicks")
+```
+
+```{r nytsummarygraf2, include=TRUE}
+ggplot(data=nytsummary, aes(x = agegroup, y=total, fill=total, label=MeanClicks)) +
+  geom_bar(stat="identity") +
+  ##geom_text(size = 3, position = position_stack(vjust = .5), colour="white") +
+  ggtitle("NYT audience has more middle-aged people") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("agegroup") +
+  ylab("Total users")
+```
+
+Let's create small multiple histograms that shows the distribution of Impressions for each age group. It appears to create a normal distribution around users with 5 impressions.
+
+```{r nytdayno0, include=TRUE, fig.width = 6, fig.height = 10}
+
+
+ggplot(data=nytdayno0, aes(x=Impressions)) +
+geom_histogram(binwidth = 1) +
+  facet_grid(agegroup ~ .) + 
+  ggtitle("Impressions by age group") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("agegroup") +
+  ylab("Impressions")
+
+```
+
+Let's also create a small multiple histogram that shows click through rate. This shows that the vast majority of users have a clickthrough rate of zero.  It also destroys the scale for the graph, making it impossible to see the distribution of the non-zero users.  
+
+```{r nytdayno02, include=TRUE, fig.width = 6, fig.height = 10}
+ggplot(data=nytdayno0, aes(x=CTR, fill=CTR)) +
+geom_histogram(binwidth = .01) +
+  facet_grid(agegroup ~ .) + 
+  ggtitle("Impressions by age group") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("agegroup") +
+  ylab("Impressions")
+```
+
+To get a better look at the non-zero distribution of CTR, let's rebuild the graph without the 0 users.  Most of the users are distributed under .25 percent CTR.
+  
+```{r nytdayno04, include=TRUE, fig.width = 6, fig.height = 10}
+
+
+ggplot(data=subset(nytdayno0, CTR>0), aes(x=CTR, fill=CTR)) +
+geom_histogram(binwidth = .01) +
+  facet_grid(agegroup ~ .) + 
+  ggtitle("Impressions by age group") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("agegroup") +
+  ylab("Impressions")
+
+
+```
+
+Let's look at users based on click behavior.  We've segmented them into "No Clicks" and "Some Clicks". The vast majority of users do not click through to another page. 
+
+```{r nytdayno05, include=TRUE, fig.width = 6, fig.height = 5}  
+  ggplot(data=nytdayno0, aes(x=clickgroup)) +
+  geom_bar() +
+  ggtitle("Users by click group") +
+  scale_color_fivethirtyeight() +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("Click Group") +
+  ylab("Total Users")
+```
+
+Let's drill in specifically on the behavior of logged-in users vs. non-logged in users.  0 is a not signed in user.  1 is signed in user. We need to go back to our original nytweek data set for this. 
+  
+```{r nytdaya, include=TRUE}  
+  
+nytday <- subset(nytweek, Day == "One")
+
+```
+Let's create a natural language version of 0 and 1 for the logged in value "Logged In" "Not Logged In" and add it to the end of the data set. Let's also create a column for Clickthru rate called CTR, which is clicks divided by impressions.  Because CTR doesn't exist, it's automatically added to the end of the existing table.    
+
+```{r nytdayb, include=TRUE}  
+nytday <- cbind(nytday, usertype = cut(nytday$Signed_In, breaks=c(-1,0,Inf), labels= c("Not Logged In", "Logged In")))
+
+nytday$CTR <- nytday$Clicks/nytday$Impressions
+
+```
+
+Let's summarize our data based on usertype.  While impressions are relatively consistent at around 5, the mean click through rate for logged in users is half the click through rate for not logged in users. 
+
+```{r nytdayc, include=TRUE}
+nytsummarycl <- nytday %>% 
+  group_by(usertype) %>%
+  arrange(usertype) %>%
+  summarise(MeanAge = mean(Age),
+            MeanGender = mean(Gender),
+            MeanImpressions = mean(Impressions),
+            MeanClicks = mean(Clicks),
+            MeanSignedIn = mean(Signed_In),
+            MeanCTR = mean(CTR),
+            total = n()) %>%
+  print(n = 10, width = Inf)
+
+  ggplot(data=nytsummarycl, aes(x=usertype, y=MeanClicks)) +
+  geom_bar(stat="Identity") +
+  ggtitle("Users by click group") +
+  scale_color_fivethirtyeight() +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("Click Group") +
+  ylab("Mean Click Rate")
+```
+
+
+Let's create small multiple histograms that shows the distribution of Impressions for each usertype. The distribution of impressions is pretty similar for logged in vs not logged in users.  
+```{r nytdayd, include=TRUE}
+
+ggplot(data=nytday, aes(x=Impressions)) +
+  geom_histogram(binwidth = 1) +
+  facet_grid(usertype ~ .) +
+  ggtitle("Impressions by click group") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("clickgroup") +
+  ylab("Impressions")
+```
+
+Let's create small multiple histograms that shows the distribution of Click Through Rate for each usertype. It shows that, again, the vast majority of of users have a CTR of zero. 
+```{r nytdaye, include=TRUE}
+ggplot(data=nytday, aes(x=CTR)) +
+  geom_histogram(binwidth = .01) +
+  facet_grid(usertype ~ .) +
+  ggtitle("CTR by click group") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("clickgroup") +
+  ylab("CTR")
+```
+
+To get a better look at the non-zero distribution of CTR, let's rebuild the graph without the 0 users.  Most of the users are distributed under .25 percent CTR. The distributions are fairly similar for both. 
+
+```{r nytdayf, include=TRUE}
+ggplot(data=subset(nytday, CTR > 0), aes(x=CTR)) +
+  geom_histogram(binwidth = .01) +
+  facet_grid(usertype ~ .) +
+  ggtitle("CTR by click group") +
+  scale_color_fivethirtyeight(count) +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("clickgroup") +
+  ylab("CTR")
+```
+
+Now let's drill in on the behavior of men vs. women.  Let's create a natural language version of 0 and 1 for the logged in value "Female" "Male" and add it to the end of the data set in column sex.  Some interesting findings here: women were much more likely than men, on average, to click, though average impressions were essentially the same. 
+    
+
+```{r nytdayg, include=TRUE}
+nytday <- cbind(nytday, sex = cut(nytday$Gender, breaks=c(-1,0,Inf), labels= c("Female", "Male")))
+
+nytsummarycl <- nytday %>% 
+  group_by(sex) %>%
+  arrange(sex) %>%
+  summarise(MeanAge = mean(Age),
+            MeanGender = mean(Gender),
+            MeanImpressions = mean(Impressions),
+            MeanClicks = mean(Clicks),
+            MeanSignedIn = mean(Signed_In),
+            MeanCTR = mean(CTR),
+            total = n()) %>%
+  print(n = 10, width = Inf)
+
+ ggplot(data=nytsummarycl, aes(x=sex, y=MeanClicks)) +
+  geom_bar(stat="Identity") +
+  ggtitle("Mean clicks by gender") +
+  scale_color_fivethirtyeight() +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("Gender") +
+  ylab("Mean Click Rate")
+```
+
+
+Now let's track movements across time.  Let's add a new column to nytweek, using the grammar of tidyverse, using mutate() to calculate the clickthrough rate.
+
+```{r nytdayh, include=TRUE}
+
+nytweek <- mutate(nytweek, CTR = Clicks/Impressions)
+
+```
+Now let's break down what, if any, difference there is by day across a single week.  
+
+We'll create a new data frame (or a tibble in parlance of tidyverse) called nytsummary and group by day of the week, and calculate summary stats (means, across each category), plus a count of total observations.  Here's what we see.  
+
+There's almost no meaningful variation in average age (range 29.43 to 29.5).  The gender profile -- if 0 is woman and 1 is man, an average under .5 indicates a larger percentage of women -- stays relatively constant across days, raging from .374 on day two, to .355 on day six. The mean impressions stays extremely constant at 5 on all days.  And the mean number of clicks stays constant at .092.  The percentage of signed in users -- if 0 is not signed in and 1 is signed in, then a mean over .5 means more signed in users than not signed in -- stays constant at .7.  In fact, the only real variation across days present is the total number of users.  That figure dips from a low of 370K on day 5 to a high of 765K on day 6.  
+
+```{r nytdayi, include=TRUE}
+nytsummary <- nytweek %>% 
+  group_by(DayNumber, Day) %>%
+  arrange(Day) %>%
+  summarise(MeanAge = mean(Age),
+            MeanGender = mean(Gender),
+            MeanImpressions = mean(Impressions),
+            MeanClicks = mean(Clicks),
+            MeanSignedIn = mean(Signed_In),
+            MeanCTR = mean(CTR),
+            total = n()) 
+  ggplot(data=nytsummary, aes(DayNumber,total)) +
+  geom_bar(stat = "identity") +
+  scale_x_continuous(breaks = round(seq(min(nytsummary$DayNumber), max(nytsummary$DayNumber), by = 1),1)) +
+  ggtitle("Mean clicks by day") +
+  scale_color_fivethirtyeight() +
+  theme_gdocs() +
+  theme(axis.text.x=element_text(angle=90,hjust=1)) + 
+  xlab("Day") +
+  ylab("Total clicks")
+
+```
