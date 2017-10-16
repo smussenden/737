@@ -64,6 +64,7 @@ statecopricemodel<-lm(train$price2013 ~ train$state+train$county)
 statecopricemodel<-summary(statecopricemodel)$coefficients
 View(statecopricemodel)
 
+
 ##Now let's try transforming the data to combine state and county into a single variable (column) so we get unique counties. 
 
 statecountytrain <- train %>%
