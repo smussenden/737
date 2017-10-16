@@ -71,11 +71,41 @@ statecountytrain <- train %>%
   unite(statecounty, state, county, remove=FALSE, sep="-")
 View(statecountytrain)
 
-##Now let's run the model, with the new statecounty column and the state column.
+stcountymeans <- statecountytrain %>% 
+  group_by(statecounty) %>%
+  summarise(mean = mean(price2013)) %>%
+  arrange(mean)
+View(stcountymeans)
 
-statecopricemodel<-lm(statecountytrain$price2013 ~ statecountytrain$state+statecountytrain$statecounty)
+stateaverage <- stateaverage %>%
+  mutate(CalculatedIntercept=mean-281730)
+View(stateaverage)
+
+
+##Now let's run the model, with the new statecounty column and the state column. When I run it in different orders, I get different values. When I do state second, I get state NA values.  When I do state first, I get a value. I'm going to do state first.  
+
+lm(statecountytrain$price2013 ~ statecountytrain$statecounty + statecountytrain$state)
+
+statecopricemodel<-lm(statecountytrain$price2013 ~ statecountytrain$statecounty + statecountytrain$state)
 statecopricemodel<-summary(statecopricemodel)$coefficients
 View(statecopricemodel)
+
+statecopricemodel<-lm(statecountytrain$price2013 ~ statecountytrain$statecounty+statecountytrain$state)
+statecopricemodel<-summary(statecopricemodel)$coefficients
+View(statecopricemodel)
+
+write.csv(statecopricemodel)
+
+statecopricemodel1 <-lm(statecountytrain$price2013 ~ statecountytrain$statecounty+statecountytrain$state)
+statecopricemodel1 <-summary(statecopricemodel1)$coefficients
+View(statecopricemodel1)
+write.csv(statecopricemodel1)
+
+
+
+
+predict <- predict.lm(statecopricemodel, newdata = test)
+View(predict)
 
 ##We get a multiple R-squared of .5671, meaning a medium-strong positive correlation between state, county and home prices, with a tiny p value, indicating a significant result. That means state+county explains more than half of the variation in home prices.     Let's answer the questions. 
 
@@ -83,6 +113,36 @@ View(statecopricemodel)
 ## Answer A: Lynchburg, in rural Virginia, has the lowest.  San Mateo county California, located in the San Francisco area, has the highest, which makes sense, since it's one of the most expensive areas to live in the United States. 
 
 ##(30 points) Challenge: Build a regressor that best predicts average home values in this dataset.  Upload your predictions to Kaggle (IMPORTANT: you must use your UMD e-mail to get access to this competition).  If your UMD username is JSMITH, use JSMITH_DID as your username on Kaggle.  You are welcome to use any additional data you care to use so long as they are from 2007 or earlier.  You must describe any additional data you use in the writeup.  All students must make a submission to Kaggle; additional points available to those who do best (WARNING: make sure you submit something before the deadline, as you cannot use late days on the competition). Describe what you did to build the best predictor possible Give your best Kaggle score Give your Kaggle username
+
+# Available we have id, zip code, state, county, poverty, price2007 and 2013.
+# Don't use unique ID
+# Checking to see if there are more than one zip code. So we shouldn't use zip code.  
+
+zipcount <- train %>% 
+  group_by(zip) %>%
+  summarise(n = n()) %>%
+  arrange(n)
+View(zipcount)
+
+# Use state
+# Use poverty 
+lm(statecountytrain$price2013 ~ statecountytrain$poverty)
+summary(lm(statecountytrain$price2013 ~ statecountytrain$poverty))
+# Use county
+# Use price 2007
+lm(statecountytrain$price2013 ~ statecountytrain$price2007)
+summary(lm(statecountytrain$price2013 ~ statecountytrain$price2007))
+# WOW! 
+
+## Now use all four. 
+mlm = lm(statecountytrain$price2013 ~ statecountytrain$statecounty + statecountytrain$state + statecountytrain$poverty + statecountytrain$price2007)
+summary(mlm)
+predict.lm(mlm, newdata=test)
+
+
+statecopricemodel<-lm(statecountytrain$price2013 ~ statecountytrain$statecounty + statecountytrain$state + statecountytrain$zip + statecountytrain$)
+statecopricemodel<-summary(statecopricemodel)$coefficients
+View(statecopricemodel)
 
 ##The Evaluation metric is RMSE.  This rewards you for getting close to the true answer (and penalizes being very far away).  
 
