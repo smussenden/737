@@ -164,6 +164,7 @@ testmlm <- testmlm %>%
 testmlm <- testmlm %>%
   filter(!statecounty %in% c("CO-gilpin", "FL-washington", "GA-union", "LA-bossier", "NH-grafton", "TX-hill", "TX-hunt", "TX-orange", "VA-carroll", "VA-harrisonburg city", "WA-douglas")) 
 
+
 # Add our predicted values to a column called price 2013 inside the test set we created.
 testmlm <- testmlm %>%   
   mutate(price2013 = predict.lm(pricecounty, newdata=testmlm))

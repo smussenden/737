@@ -1,0 +1,18 @@
+Each line has a guess (page) and a correct answer (answer) given some fraction of the question revealed so far (text). Your goal is to predict whether they match. Each guess is the title of a Wikipedia page. To get you started, you have the following columns
+
+row A unique ID for every guess
+body_score A measure of the confidence for how well the text of the Wikipedia page matches the question text
+page The guess produced
+answer The correct answer
+text The text so far revealed (randomly chosen)
+category The category (could be noisy) of the question
+tournaments The tournaments the question was used in 
+answer_type The kind of answer of the question (e.g. person, place, work)
+corr Whether the guess (page) was correct or not (i.e., whether it matched “answer”)
+inlinks The number of inlinks on the guessed Wikipedia page
+
+File descriptions
+qb.train.csv - the training set
+qb.test.csv - the test set
+qb.guess.csv - a sample submission file in the correct format
+features.R - R code to generate some additional features (described in the lecture)
